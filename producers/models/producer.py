@@ -64,16 +64,18 @@ class Producer:
         # the Kafka Broker.
         #
         #
-        client = AdminClient({"bootstrap.servers": BROKER_URL})
+        # Quite often the number of files kept open by kafka process exceeds the default setting of 1024 for the maximum number of open files on most Unix-like systems. This causes kafka process and inturn stream processes to get stalled.
+        # ulimit -n 4096
+        client = AdminClient({
+            "bootstrap.servers": BROKER_URL,
+#            "debug": "broker,admin"
+            })
 
         # return if topic already exists on the Kafka broker.
-        try:
-            topic_metadata = client.list_topics(timeout=10)
-            if topic_metadata.topics.get(self.topic_name) is not None:
-                logger.info(f"topic {self.topic_name} already exists")
-                return
-        except Exception as e:
-            raise
+        topic_metadata = client.list_topics(timeout=10)
+        if topic_metadata.topics.get(self.topic_name) is not None:
+            logger.info(f"topic {self.topic_name} already exists")
+            return
 
         # create NewTopic object based on configuration
         topic = NewTopic(
@@ -100,6 +102,21 @@ class Producer:
         #
         #
         self.producer.flush(timeout=10)
+
+        # delete topics created by producer
+        if self.topic_name not in Producer.existing_topics:
+             return
+
+        client = AdminClient({"bootstrap.servers": BROKER_URL})
+        futures = client.delete_topics([self.topic_name])
+        for topic, future in futures.items():
+            try:
+                future.result()  # The result itself is None
+                Producer.existing_topics.remove(self.topic_name)
+                logger.info(f"topic {topic} deleted")
+            except Exception as e:
+                logger.exception(f"failed to delete topic {topic}: {e}")
+                raise
 
     def time_millis(self):
         """Use this function to get the key for Kafka Events"""

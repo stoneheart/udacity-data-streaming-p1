@@ -5,8 +5,6 @@ import logging
 
 from models import Station, Train
 
-import time
-
 logger = logging.getLogger(__name__)
 
 
@@ -52,7 +50,6 @@ class Line:
         curr_loc = 0
         b_dir = True
         for train_id in range(self.num_trains):
-            logger.info(f"train_id {train_id}")
             tid = str(train_id).zfill(3)
             train = Train(
                 f"{self.color.name[0].upper()}L{tid}", Train.status.in_service
@@ -64,9 +61,6 @@ class Line:
             else:
                 self.stations[curr_loc].arrive_a(train, None, None)
             curr_loc, b_dir = self._get_next_idx(curr_loc, b_dir)
-
-            ### test
-            time.sleep(10)
 
         return trains
 
